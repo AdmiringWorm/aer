@@ -16,7 +16,7 @@ aer_license = { path = "../aer_license", default-features = false }
 aer_version = { path = "../aer_version", default-features = false }
 serde = { version = "1.0.125", optional = true }
 url = "2.2.1"
-whoami = "1.1.1"
+whoami = "1.1.2"
 
 [dev-dependencies]
 rstest = "0.7.0"
