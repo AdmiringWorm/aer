@@ -209,6 +209,12 @@ fn download_file(request: WebRequest, args: DownloadArguments) -> Result<(), Web
         None
     };
 
+    if let Some(ref file_name) = args.file_name {
+        if validate_local_file(&args, file_name)? {
+            return Ok(());
+        }
+    }
+
     let response = request.get_binary_response(args.url.as_str(), etag, last_modified)?;
 
     match response {
@@ -216,29 +222,14 @@ fn download_file(request: WebRequest, args: DownloadArguments) -> Result<(), Web
             info!("No download is necessary!");
         }
         ResponseType::New(mut response, _) => {
-            let work_dir = args.work_dir.unwrap(); // We use unwrap due to the work directory being expected to be set at this point
-            let file_name = response.file_name().unwrap();
-            let possible_path = work_dir.join(file_name);
-            if possible_path.exists() {
-                if let Some(ref checksum) = args.checksum {
-                    let file_checksum = args.checksum_type.generate(&possible_path)?;
-                    if checksum.to_lowercase() == file_checksum {
-                        info!(
-                            "File exists, and matches the specified checksum. Nothing to download!"
-                        );
-                        return Ok(());
-                    } else {
-                        warn!(
-                            "File exists, but do not match the specified checksum. Re-downloading \
-                             file!"
-                        );
-                    }
-                } else {
-                    info!("File exists, but no checksum available. Continuing download!!");
+            if args.file_name.is_none() {
+                let file_name = response.file_name().unwrap();
+                if validate_local_file(&args, &file_name)? {
+                    return Ok(());
                 }
             }
 
-            response.set_work_dir(&work_dir);
+            response.set_work_dir(&args.work_dir.unwrap());
 
             let (etag, last_modified) = get_info(&response);
             let result = if let Some(file_name) = args.file_name {
@@ -289,6 +280,31 @@ fn download_file(request: WebRequest, args: DownloadArguments) -> Result<(), Web
     }
 
     Ok(())
+}
+
+fn validate_local_file(args: &DownloadArguments, file_name: &str) -> Result<bool, WebError> {
+    let checksum = if let Some(ref checksum) = args.checksum {
+        checksum
+    } else {
+        return Ok(false);
+    };
+
+    let work_dir = args.work_dir.as_ref().unwrap();
+    let possible_path = work_dir.join(file_name);
+
+    if possible_path.exists() {
+        let file_checksum = args.checksum_type.generate(&possible_path)?;
+        if checksum.to_lowercase() == file_checksum {
+            info!("File exists, and matches the specified checksum. Nothing to download!");
+            return Ok(true);
+        } else {
+            warn!("File exists, but do not match the specified checksum. Re-downloading file!");
+        }
+    } else {
+        info!("File exists, but no checksum available. Continuing download!");
+    }
+
+    Ok(false)
 }
 
 fn get_info<T: WebResponse>(response: &T) -> (String, String) {
