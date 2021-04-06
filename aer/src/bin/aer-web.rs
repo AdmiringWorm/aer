@@ -57,6 +57,11 @@ struct DownloadArguments {
     #[structopt(long, short)]
     last_modified: Option<String>,
 
+    /// The file name to use when downloading a file. This can be used to
+    /// override the default name, or if a name can not be detected.
+    #[structopt(long)]
+    file_name: Option<String>,
+
     /// The checksum to compare the downladed file with. If an existing file
     /// with the a matching name and it matches the checksum, then a download
     /// will not occurr (*NOT IMPLEMENTED*).
@@ -236,7 +241,12 @@ fn download_file(request: WebRequest, args: DownloadArguments) -> Result<(), Web
             response.set_work_dir(&work_dir);
 
             let (etag, last_modified) = get_info(&response);
-            let result = response.read(None)?; // TODO: #15 pass in file name if specified
+            let result = if let Some(file_name) = args.file_name {
+                let file_name_str = Some(file_name.as_str());
+                response.read(file_name_str)?
+            } else {
+                response.read(None)?
+            };
             info!("The following information was given by the server:");
             print_string("ETag", etag.trim_matches('"'));
             print_string("Last Modified", &last_modified);
