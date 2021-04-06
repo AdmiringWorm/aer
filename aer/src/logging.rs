@@ -143,8 +143,10 @@ fn configure_cli_dispatch<T: LogDataTrait>(colors: Colors, log: &T) -> fern::Dis
     .filter(move |metadata| metadata.level() >= Level::Info)
     .level(*log.level());
 
-    for level in get_levels() {
-        cli_info = cli_info.level_for(level.0, level.1);
+    if log.level() > &LevelFilter::Info {
+        for level in get_levels() {
+            cli_info = cli_info.level_for(level.0, level.1);
+        }
     }
 
     cli_info = cli_info.chain(std::io::stdout());
