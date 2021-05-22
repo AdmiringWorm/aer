@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Kim J. Nordmo and WormieCorp.
 // Licensed under the MIT license. See LICENSE.txt file in the project
 
+pub mod commands;
 pub mod logging;
 
 use std::fmt::Display;

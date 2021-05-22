@@ -1,9 +1,10 @@
 // Copyright (c) 2021 Kim J. Nordmo and WormieCorp.
 // Licensed under the MIT license. See LICENSE.txt file in the project
 #![windows_subsystem = "console"]
+
 use std::path::{Path, PathBuf};
 
-use aer::{log_data, logging};
+use aer::{commands, log_data, logging};
 use aer_upd::data::*;
 use aer_upd::parsers;
 use aer_upd::web::{WebRequest, WebResponse};
@@ -17,35 +18,70 @@ use yansi::Paint;
 log_data! {}
 
 #[derive(StructOpt)]
-#[structopt(author = env!("CARGO_PKG_AUTHORS"))]
-struct Arguments {
+enum Commands {
+    Update(UpdateArguments),
+    Web(commands::WebArguments),
+}
+
+#[derive(StructOpt)]
+struct UpdateArguments {
     /// The files containing the necessary data (metadata+updater data) that
     /// should be used during the run.
     #[structopt(required = true, parse(from_os_str))]
     package_files: Vec<PathBuf>,
+}
+
+#[derive(StructOpt)]
+#[structopt(author = env!("CARGO_PKG_AUTHORS"))]
+struct Arguments {
+    #[structopt(subcommand)]
+    cmd: Commands,
 
     #[structopt(flatten)]
     log: LogData,
+
+    /// Disable the usage of colors when outputting text to the console.
+    #[structopt(long, global = true)]
+    no_color: bool,
 }
 
 fn main() {
     #[cfg(feature = "human")]
     setup_panic!();
-    if cfg!(windows) && !Paint::enable_windows_ascii() {
-        Paint::disable();
-    }
 
-    let args = Arguments::from_args();
+    let args = {
+        let mut args = Arguments::from_args();
+        if std::env::var("NO_COLOR").unwrap_or_default().to_lowercase() == "true" {
+            args.no_color = true;
+        }
+        if args.no_color || (cfg!(windows) && !Paint::enable_windows_ascii()) {
+            Paint::disable();
+        }
+        args
+    };
     logging::setup_logging(&args.log).expect("Unable to configure logging of the application!");
 
     // TODO: #11 Run updating on several threads
-    for file in args.package_files {
-        match run_update(&file) {
-            Err(err) => error!("An error occurred during update process: '{}'", err),
-            _ => {
-                todo!()
+    let result = match args.cmd {
+        Commands::Update(args) => {
+            let mut result: Result<(), Box<dyn std::error::Error>> = Ok(());
+            for file in args.package_files {
+                if let Err(err) = run_update(&file) {
+                    result = Err(err);
+                    break;
+                }
             }
+            result
         }
+        Commands::Web(args) => commands::run_web(args),
+    };
+
+    match result {
+        Err(err) => {
+            error!("An error occurred during processing: '{}'", err);
+            std::process::exit(1);
+        }
+        _ => {}
     }
 }
 

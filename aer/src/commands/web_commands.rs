@@ -1,24 +1,18 @@
 // Copyright (c) 2021 Kim J. Nordmo and WormieCorp.
 // Licensed under the MIT license. See LICENSE.txt file in the project
-#![windows_subsystem = "console"]
 
 use std::fmt::Display;
 use std::path::PathBuf;
 
-use aer::{log_data, logging, ChecksumType};
 use aer_upd::data::Url;
 use aer_upd::web::errors::WebError;
-use aer_upd::web::{LinkElement, LinkType, ResponseType, WebRequest, WebResponse};
-#[cfg(feature = "human")]
-use human_bytes::human_bytes;
-#[cfg(feature = "human")]
-use human_panic::setup_panic;
+use aer_upd::web::{BinaryResponse, LinkElement, LinkType, ResponseType, WebRequest, WebResponse};
 use lazy_static::lazy_static;
 use log::{error, info, warn};
 use structopt::StructOpt;
-use yansi::{Color, Paint, Style};
+use yansi::{Color, Style};
 
-log_data! { "aer-web" }
+use crate::ChecksumType;
 
 #[derive(StructOpt)]
 #[structopt(after_help = "EXAMPLES:
@@ -30,7 +24,7 @@ log_data! { "aer-web" }
     Parsing while extracting version
       `parse https://github.com/codecov/codecov-exe/releases/latest \
                           --regex '/(?P<version>[\\d\\.]+)/.*\\.zip$'`")]
-struct ParseArguments {
+pub struct ParseArguments {
     /// The url to use to test parsing a single web page.
     url: Url,
 
@@ -40,7 +34,7 @@ struct ParseArguments {
 }
 
 #[derive(StructOpt)]
-struct DownloadArguments {
+pub struct DownloadArguments {
     /// The url of the binary file to download.
     url: Url,
 
@@ -85,7 +79,7 @@ struct DownloadArguments {
 }
 
 #[derive(StructOpt)]
-enum Commands {
+pub enum WebCommands {
     /// Allows testing a single parse command using the specified url, and
     /// optionally an regex. This will output any links found on the website.
     Parse(ParseArguments),
@@ -99,100 +93,71 @@ enum Commands {
 /// included the ability to parse HTML websites, and downloading binary files.
 #[derive(StructOpt)]
 #[structopt(author = env!("CARGO_PKG_AUTHORS"), name = "aer-web")]
-struct Arguments {
+pub struct WebArguments {
     #[structopt(subcommand)]
-    cmd: Commands,
-
-    #[structopt(flatten)]
-    log: LogData,
-
-    /// Disable the usage of colors when outputting text to the console.
-    #[structopt(long, global = true)]
-    no_color: bool,
+    cmd: WebCommands,
 }
 
-fn main() {
-    #[cfg(feature = "human")]
-    setup_panic!();
-    let args = {
-        let mut args = Arguments::from_args();
-        if std::env::var("NO_COLOR").unwrap_or_default().to_lowercase() == "true" {
-            args.no_color = true;
-        }
-
-        if args.no_color || (cfg!(windows) && !Paint::enable_windows_ascii()) {
-            Paint::disable();
-        }
-        args
-    };
-
-    logging::setup_logging(&args.log).expect("Unable to configure logging of the application!");
-
+pub fn run_web(args: WebArguments) -> Result<(), Box<dyn std::error::Error>> {
     let request = WebRequest::create();
     match args.cmd {
-        Commands::Parse(args) => parse_cmd(request, args),
-        Commands::Download(args) => download_cmd(request, args),
+        WebCommands::Parse(args) => parse_cmd(request, args),
+        WebCommands::Download(args) => Ok(download_cmd(request, args)?),
     }
 }
 
-fn parse_cmd(request: WebRequest, args: ParseArguments) {
-    match parse_website(request, args.url, args.regex) {
-        Ok((parent, links)) => {
-            info!(
-                "Successfully parsed '{}'",
-                Color::Magenta.paint(parent.link)
-            );
+fn parse_cmd(request: WebRequest, args: ParseArguments) -> Result<(), Box<dyn std::error::Error>> {
+    let (parent, links) = parse_website(request, args.url, args.regex)?;
+    info!(
+        "Successfully parsed '{}'",
+        Color::Magenta.paint(parent.link)
+    );
 
-            for link in &links {
-                info!(
-                    "{} (type: {}, title: {}, version: {}, text: {})",
-                    Color::Magenta.paint(&link.link),
-                    Color::Cyan.paint(link.link_type),
-                    Color::Cyan.paint(if link.title.is_empty() {
-                        "None"
-                    } else {
-                        &link.title
-                    }),
-                    Color::Cyan.paint(if let Some(version) = &link.version {
-                        version.to_string()
-                    } else {
-                        "None".into()
-                    }),
-                    Color::Cyan.paint(&link.text)
-                );
-            }
-
-            info!(
-                "Found {} links on the webpage!",
-                Color::Cyan.paint(links.len())
-            );
-            info!("The following link types was found!");
-            for link_type in LinkType::variants() {
-                let count = links.iter().filter(|l| l.link_type == *link_type).count();
-
-                info!("Found {:2} {} types!", Color::Cyan.paint(count), link_type);
-            }
-        }
-        Err(err) => {
-            error!("Unable to parse the requested website!");
-            error!("Error message: {}", err);
-            std::process::exit(1);
-        }
+    for link in &links {
+        info!(
+            "{} (type: {}, title: {}, version: {}, text: {})",
+            Color::Magenta.paint(&link.link),
+            Color::Cyan.paint(link.link_type),
+            Color::Cyan.paint(if link.title.is_empty() {
+                "None"
+            } else {
+                &link.title
+            }),
+            Color::Cyan.paint(if let Some(ref version) = link.version {
+                version.to_string()
+            } else {
+                "None".into()
+            }),
+            Color::Cyan.paint(&link.text)
+        );
     }
+
+    info!(
+        "Found {} links on the webpage!",
+        Color::Cyan.paint(links.len())
+    );
+
+    info!("The following link types was found!");
+    for link_type in LinkType::variants() {
+        let count = links.iter().filter(|l| l.link_type == *link_type).count();
+
+        info!("Found {:2} {} types!", Color::Cyan.paint(count), link_type);
+    }
+
+    Ok(())
 }
 
-fn download_cmd(request: WebRequest, mut args: DownloadArguments) {
+fn download_cmd(
+    request: WebRequest,
+    mut args: DownloadArguments,
+) -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir = if let Some(work_dir) = args.work_dir {
         work_dir
     } else {
         std::env::temp_dir()
     };
     args.work_dir = Some(temp_dir);
-
-    if let Err(err) = download_file(request, args) {
-        error!("Unable to download the file. Error: {}", err);
-        std::process::exit(1);
-    }
+    download_file(request, args)
 }
 
 fn parse_website(
@@ -209,7 +174,10 @@ fn parse_website(
     }
 }
 
-fn download_file(request: WebRequest, args: DownloadArguments) -> Result<(), WebError> {
+fn download_file(
+    request: WebRequest,
+    args: DownloadArguments,
+) -> Result<(), Box<dyn std::error::Error>> {
     let etag = if let Some(ref etag) = args.etag {
         Some(etag.as_str())
     } else {
@@ -234,65 +202,7 @@ fn download_file(request: WebRequest, args: DownloadArguments) -> Result<(), Web
             info!("No download is necessary!");
         }
         ResponseType::New(mut response, _) => {
-            if args.file_name.is_none() {
-                let file_name = response.file_name().unwrap();
-                if validate_local_file(&args, &file_name)? {
-                    return Ok(());
-                }
-            }
-
-            response.set_work_dir(&args.work_dir.unwrap());
-
-            let (etag, last_modified) = get_info(&response);
-            let result = if let Some(file_name) = args.file_name {
-                let file_name_str = Some(file_name.as_str());
-                response.read(file_name_str)?
-            } else {
-                response.read(None)?
-            };
-            info!("The following information was given by the server:");
-            print_string("ETag", etag.trim_matches('"'));
-            print_string("Last Modified", &last_modified);
-
-            match args.checksum_type.generate(&result) {
-                Ok(checksum) => {
-                    print_line("Checksum", &checksum);
-                    print_line("Checksum Type", args.checksum_type);
-
-                    if let Some(original_checksum) = args.checksum {
-                        if original_checksum.to_lowercase() == checksum {
-                            info!(
-                                "{}",
-                                Color::Green.paint(
-                                    "Original Checksum matches the checksum of the downloaded \
-                                     file!"
-                                )
-                            );
-                        } else {
-                            error!(
-                                "Original Checksum did not match the checksum of the downloaded \
-                                 file!"
-                            );
-                        }
-                    }
-                }
-                Err(err) => error!("Unable to generate checksum: {}", err),
-            }
-
-            let len = {
-                #[cfg(feature = "human")]
-                {
-                    human_bytes(result.metadata()?.len() as f64)
-                }
-                #[cfg(not(feature = "human"))]
-                format!("{} bytes", result.metadata()?.len())
-            };
-
-            info!("The resulting file is {} long!", Color::Cyan.paint(len));
-
-            if !args.keep_files {
-                let _ = std::fs::remove_file(result);
-            }
+            handle_new_response(response, args)?;
         }
     }
 
@@ -324,7 +234,75 @@ fn validate_local_file(args: &DownloadArguments, file_name: &str) -> Result<bool
     Ok(false)
 }
 
-fn get_info<T: WebResponse>(response: &T) -> (String, String) {
+fn handle_new_response(
+    mut response: BinaryResponse,
+    args: DownloadArguments,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if args.file_name.is_none() {
+        let file_name = response.file_name().unwrap();
+        if validate_local_file(&args, &file_name)? {
+            info!("Local file already matches the file requested upstream!");
+            return Ok(());
+        }
+    }
+
+    response.set_work_dir(&args.work_dir.unwrap());
+
+    let (etag, last_modified) = get_response_info(&response);
+    let result = if let Some(file_name) = args.file_name {
+        let file_name_str = Some(file_name.as_str());
+        response.read(file_name_str)
+    } else {
+        response.read(None)
+    }?;
+
+    info!("The following information was given by the server:");
+    print_string("ETag", etag.trim_matches('"'));
+    print_string("Last Modified", &last_modified);
+
+    match args.checksum_type.generate(&result) {
+        Ok(checksum) => {
+            print_line("Checksum", &checksum);
+            print_line("Checksum Type", args.checksum_type);
+
+            if let Some(original_checksum) = args.checksum {
+                if original_checksum.to_lowercase() == checksum {
+                    info!(
+                        "{}",
+                        Color::Green.paint(
+                            "Original Checksum matches the checksum of the downloaded file!"
+                        )
+                    );
+                } else {
+                    warn!("Original Checksum did not match the checksum of the downloaded file!");
+                }
+            }
+        }
+        Err(err) => {
+            error!("Unable to generate checksum");
+            return Err(Box::new(err));
+        }
+    }
+
+    let len = {
+        #[cfg(feature = "human")]
+        {
+            human_bytes::human_bytes(result.metadata()?.len() as f64)
+        }
+        #[cfg(not(feature = "human"))]
+        format!("{} bytes", result.metadata()?.len())
+    };
+
+    info!("The resulting file is {} long!", Color::Cyan.paint(len));
+
+    if !args.keep_files {
+        let _ = std::fs::remove_file(result);
+    }
+
+    Ok(())
+}
+
+fn get_response_info<T: WebResponse>(response: &T) -> (String, String) {
     let headers = response.get_headers();
     let mut etag = String::new();
     let mut last_modified = String::new();

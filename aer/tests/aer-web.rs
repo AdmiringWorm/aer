@@ -24,10 +24,11 @@ lazy_static! {
 
 #[test]
 fn should_parse_with_correct_information_command() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("aer-web")?;
+    let mut cmd = Command::cargo_bin("aer")?;
     let log_path = LOG_DIR.join("aer-web-tests-parse-correct.log");
 
     cmd.args(&[
+        "web",
         "parse",
         "https://github.com/codecov/codecov-exe/releases",
         "--log",
@@ -51,10 +52,11 @@ fn should_parse_with_correct_information_command() -> Result<(), Box<dyn std::er
 
 #[test]
 fn should_parse_with_regex_command() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("aer-web")?;
+    let mut cmd = Command::cargo_bin("aer")?;
     let log_path = LOG_DIR.join("aer-web-tests-parse-regex.log");
 
     cmd.args(&[
+        "web",
         "parse",
         "https://chocolatey.org",
         "--regex",
@@ -80,10 +82,11 @@ fn should_parse_with_regex_command() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn should_download_file_and_output_message() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("aer-web")?;
+    let mut cmd = Command::cargo_bin("aer")?;
     let log_path = LOG_DIR.join("aer-web-tests-download-info.log");
 
     cmd.args(&[
+        "web",
         "download",
         "https://github.com/codecov/codecov-exe/releases/download/1.11.0/codecov-linux-x64.zip",
         "--log",
@@ -116,10 +119,11 @@ fn should_download_file_and_output_message() -> Result<(), Box<dyn std::error::E
 
 #[test]
 fn should_not_download_up_to_date_file() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("aer-web")?;
+    let mut cmd = Command::cargo_bin("aer")?;
     let log_path = LOG_DIR.join("aer-web-tests-no-download.log");
 
     cmd.args(&[
+        "web",
         "download",
         "https://github.com/chocolatey/ChocolateyGUI/releases/download/0.18.1/ChocolateyGui.Common.0.18.1.nupkg",
         "--etag",
@@ -141,7 +145,7 @@ fn should_not_download_up_to_date_file() -> Result<(), Box<dyn std::error::Error
 
 #[test]
 fn should_keep_downloaded_files() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("aer-web")?;
+    let mut cmd = Command::cargo_bin("aer")?;
     let log_path = LOG_DIR.join("aer-web-tests-no-download.log");
     let file_name = "keep-file.exe";
     let work_dir = std::env::temp_dir();
@@ -151,6 +155,7 @@ fn should_keep_downloaded_files() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     cmd.args(&[
+        "web",
         "download",
         "https://github.com/mwallner/rocolatey/releases/download/v0.5.3/rocolatey-server.exe",
         "--keep-files",
@@ -184,7 +189,7 @@ fn should_keep_downloaded_files() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn should_redownload_file_on_checksum_mismatch() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("aer-web")?;
+    let mut cmd = Command::cargo_bin("aer")?;
     let log_path = LOG_DIR.join("aer-web-tests-no-download.log");
     let file_name = "redownload-test.nupkg";
     let work_dir = std::env::temp_dir();
@@ -197,6 +202,7 @@ fn should_redownload_file_on_checksum_mismatch() -> Result<(), Box<dyn std::erro
     }
 
     cmd.args(&[
+        "web",
         "download",
         "https://github.com/cake-contrib/Cake.Recipe/releases/download/2.2.1/Cake.Recipe.2.2.1.nupkg",
         "--log",
@@ -226,7 +232,7 @@ fn should_redownload_file_on_checksum_mismatch() -> Result<(), Box<dyn std::erro
 
 #[test]
 fn should_no_download_file_when_checksum_matches() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("aer-web")?;
+    let mut cmd = Command::cargo_bin("aer")?;
     let log_path = LOG_DIR.join("aer-web-tests-no-download.log");
     let file_name = "checksum-match.nupkg";
     let work_dir = std::env::temp_dir();
@@ -249,6 +255,7 @@ fn should_no_download_file_when_checksum_matches() -> Result<(), Box<dyn std::er
     };
 
     cmd.args(&[
+        "web",
         "download",
         "https://not-really.important",
         "--log",

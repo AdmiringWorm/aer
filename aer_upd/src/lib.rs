@@ -21,6 +21,6 @@ pub mod data {
 }
 
 pub mod web {
-    pub use aer_web::response::ResponseType;
+    pub use aer_web::response::{BinaryResponse, HtmlResponse, ResponseType};
     pub use aer_web::{errors, LinkElement, LinkType, WebRequest, WebResponse};
 }
