@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 lazy_static = "1.4.0"
-log = "0.4.14"
+log = "0.4.17"
 aer_version = { path = "../aer_version" }
 regex = "1.5.4"
 select = "0.5.0"

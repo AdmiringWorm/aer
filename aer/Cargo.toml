@@ -20,7 +20,7 @@ fern = "0.6.0"
 human-panic = { git = "https://github.com/WormieCorp/human-panic", branch = "additional-info", optional = true }
 human_bytes = { version = "0.3.0", optional = true }
 lazy_static = "1.4.0"
-log = "0.4.14"
+log = "0.4.17"
 md-5 = "0.9.1"
 regex = "1.5.4"
 sha-1 = "0.9.6"
