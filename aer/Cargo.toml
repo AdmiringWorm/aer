@@ -25,7 +25,7 @@ md-5 = "0.9.1"
 regex = "1.5.4"
 sha-1 = "0.9.6"
 sha2 = "0.9.5"
-structopt = { version = "0.3.21", features = ["wrap_help"] }
+structopt = { version = "0.3.26", features = ["wrap_help"] }
 yansi = "0.5.0"
 
 [dev-dependencies]
