@@ -18,7 +18,7 @@ aer_upd = { path = "../aer_upd" }
 chrono = "0.4.19"
 fern = "0.6.0"
 human-panic = { git = "https://github.com/WormieCorp/human-panic", branch = "additional-info", optional = true }
-human_bytes = { version = "0.3.0", optional = true }
+human_bytes = { version = "0.4.2", optional = true }
 lazy_static = "1.4.0"
 log = "0.4.14"
 md-5 = "0.9.1"
