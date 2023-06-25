@@ -15,7 +15,7 @@ select = "0.5.0"
 rstest = "0.10.0"
 
 [target.'cfg(unix)'.dependencies]
-reqwest = { version = "0.11.3", features = ["blocking"] }
+reqwest = { version = "0.11.18", features = ["blocking"] }
 
 [target.'cfg(windows)'.dependencies]
-reqwest = { version = "0.11.3", features = ["blocking", "rustls-tls"] }
+reqwest = { version = "0.11.18", features = ["blocking", "rustls-tls"] }
