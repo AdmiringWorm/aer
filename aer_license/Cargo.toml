@@ -10,7 +10,7 @@ serialize = ["serde", "url/serde"]
 
 [dependencies]
 license = "1.1.10"
-serde = { version = "1.0.126", optional = true }
+serde = { version = "1.0.183", optional = true }
 url = "2.2.2"
 
 [dev-dependencies]
