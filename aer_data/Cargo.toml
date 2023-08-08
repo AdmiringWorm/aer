@@ -14,7 +14,7 @@ serialize = ["aer_license/serialize", "aer_version/serialize", "serde", "url/ser
 [dependencies]
 aer_license = { path = "../aer_license", default-features = false }
 aer_version = { path = "../aer_version", default-features = false }
-serde = { version = "1.0.126", optional = true }
+serde = { version = "1.0.183", optional = true }
 url = "2.2.2"
 whoami = "1.1.2"
 
